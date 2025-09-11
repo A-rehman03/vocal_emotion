@@ -10,7 +10,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 // import Chat from './pages/Chat';
-// import EmotionAnalysis from './pages/EmotionAnalysis';
+import EmotionAnalysis from './pages/EmotionAnalysis';
 // import Profile from './pages/Profile';
 import LoadingSpinner from './components/ui/LoadingSpinner';
 
@@ -87,14 +87,6 @@ function AppContent() {
               </ProtectedRoute>
             } 
           />
-          {/* <Route 
-            path="/chat" 
-            element={
-              <ProtectedRoute>
-                <Chat />
-              </ProtectedRoute>
-            } 
-          />
           <Route 
             path="/emotion-analysis" 
             element={
@@ -103,14 +95,6 @@ function AppContent() {
               </ProtectedRoute>
             } 
           />
-          <Route 
-            path="/profile" 
-            element={
-              <ProtectedRoute>
-                <Profile />
-              </ProtectedRoute>
-            } 
-          /> */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
