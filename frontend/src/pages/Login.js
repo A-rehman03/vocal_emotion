@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '../contexts/AuthContext';
@@ -27,23 +28,19 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gradient-to-br from-primary-50/50 via-white to-secondary-50/50 flex items-center justify-center px-4">
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
-        <div className="text-center">
-          <div className="mx-auto h-16 w-16 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center mb-4">
+        <motion.div className="text-center" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+          <motion.div className="mx-auto h-16 w-16 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center mb-4" animate={{ rotate: [0, 10, -10, 0] }} transition={{ duration: 1.2, repeat: Infinity, repeatDelay: 3 }}>
             <Brain className="h-8 w-8 text-white" />
-          </div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            Welcome Back
-          </h2>
-          <p className="text-gray-600">
-            Sign in to your Vocal Emotion AI account
-          </p>
-        </div>
+          </motion.div>
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h2>
+          <p className="text-gray-600">Sign in to your Vocal Emotion AI account</p>
+        </motion.div>
 
         {/* Login Form */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
+        <motion.div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {/* Email Field */}
             <div>
@@ -140,10 +137,11 @@ const Login = () => {
             </div>
 
             {/* Submit Button */}
-            <button
+            <motion.button
               type="submit"
               disabled={isLoading}
               className="w-full btn-primary py-3 text-base font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              whileTap={{ scale: 0.98 }}
             >
               {isLoading ? (
                 <div className="flex items-center justify-center">
@@ -153,7 +151,7 @@ const Login = () => {
               ) : (
                 'Sign In'
               )}
-            </button>
+            </motion.button>
           </form>
 
           {/* Divider */}
@@ -170,7 +168,7 @@ const Login = () => {
 
           {/* Social Login Buttons */}
           <div className="mt-6 grid grid-cols-2 gap-3">
-            <button className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 transition-colors">
+            <motion.button whileHover={{ y: -2 }} className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 transition-colors">
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path
                   fill="currentColor"
@@ -190,18 +188,18 @@ const Login = () => {
                 />
               </svg>
               <span className="ml-2">Google</span>
-            </button>
-            <button className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 transition-colors">
+            </motion.button>
+            <motion.button whileHover={{ y: -2 }} className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 transition-colors">
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z"/>
               </svg>
               <span className="ml-2">Twitter</span>
-            </button>
+            </motion.button>
           </div>
-        </div>
+        </motion.div>
 
         {/* Sign Up Link */}
-        <div className="text-center">
+        <motion.div className="text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
           <p className="text-gray-600">
             Don't have an account?{' '}
             <Link
@@ -211,10 +209,10 @@ const Login = () => {
               Sign up for free
             </Link>
           </p>
-        </div>
+        </motion.div>
 
         {/* Features Preview */}
-        <div className="bg-white/50 backdrop-blur-sm rounded-xl p-6 border border-white/20">
+        <motion.div className="bg-white/50 backdrop-blur-sm rounded-xl p-6 border border-white/20" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
           <h3 className="text-lg font-semibold text-gray-800 mb-4 text-center">
             Experience AI-Powered Emotion Recognition
           </h3>
@@ -228,7 +226,7 @@ const Login = () => {
               <span className="text-sm text-gray-600">Emotion Analysis</span>
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

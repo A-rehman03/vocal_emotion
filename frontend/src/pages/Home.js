@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { 
   Brain, 
@@ -83,12 +84,12 @@ const Home = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-transparent">
       {/* Hero Section */}
       <section className="relative bg-gradient-to-br from-primary-50 via-white to-secondary-50 py-20 lg:py-32 overflow-hidden">
         <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-          <div className="text-center max-w-4xl mx-auto">
+          <motion.div className="text-center max-w-4xl mx-auto" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
             <div className="inline-flex items-center space-x-2 bg-primary-100 text-primary-700 px-4 py-2 rounded-full text-sm font-medium mb-6">
               <Brain className="h-4 w-4" />
               <span>AI-Powered Emotion Recognition</span>
@@ -107,17 +108,17 @@ const Home = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Link
                 to="/register"
-                className="btn-primary px-8 py-4 text-lg font-semibold flex items-center space-x-2 group"
+                className="btn-primary px-8 py-4 text-lg font-semibold flex items-center space-x-2 group hover-lift"
               >
                 <span>Get Started Free</span>
                 <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform duration-200" />
               </Link>
-              <button className="btn-outline px-8 py-4 text-lg font-semibold flex items-center space-x-2">
+              <button className="btn-outline px-8 py-4 text-lg font-semibold flex items-center space-x-2 hover-lift">
                 <Play className="h-5 w-5" />
                 <span>Watch Demo</span>
               </button>
             </div>
-          </div>
+          </motion.div>
         </div>
         
         {/* Floating Elements */}
@@ -164,7 +165,7 @@ const Home = () => {
             {features.map((feature, index) => {
               const Icon = feature.icon;
               return (
-                <div key={index} className="card-hover group">
+                <motion.div key={index} className="card-hover group" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.4, delay: index * 0.06 }}>
                   <div className={`h-12 w-12 bg-${feature.color}-100 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-200`}>
                     <Icon className={`h-6 w-6 text-${feature.color}-600`} />
                   </div>
@@ -174,7 +175,7 @@ const Home = () => {
                   <p className="text-gray-600 leading-relaxed">
                     {feature.description}
                   </p>
-                </div>
+                </motion.div>
               );
             })}
           </div>
@@ -241,7 +242,7 @@ const Home = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {testimonials.map((testimonial, index) => (
-              <div key={index} className="card text-center">
+              <motion.div key={index} className="card text-center" initial={{ opacity: 0, scale: 0.98 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ duration: 0.35, delay: index * 0.05 }}>
                 <div className="flex justify-center mb-4">
                   {[...Array(testimonial.rating)].map((_, i) => (
                     <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />
@@ -254,7 +255,7 @@ const Home = () => {
                   <div className="font-semibold text-gray-900">{testimonial.name}</div>
                   <div className="text-sm text-gray-500">{testimonial.role}</div>
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>
