@@ -39,26 +39,110 @@ CLASS_LABELS = [
 def load_audio_from_bytes(file_storage, target_sr=TARGET_SAMPLE_RATE):
 	"""Reads uploaded audio file into a mono float32 numpy array at target_sr."""
 	file_bytes = file_storage.read()
+	
+	# Reset file pointer
+	file_storage.seek(0)
+	
+	# Try multiple approaches for better format support
+	data = None
+	sr = None
+	
+	# Method 1: Try soundfile first (best format support)
 	try:
+		file_storage.seek(0)
 		data, sr = sf.read(io.BytesIO(file_bytes), dtype='float32', always_2d=False)
 		if data.ndim > 1:
 			data = np.mean(data, axis=1)
-	except Exception:
-		data, sr = librosa.load(io.BytesIO(file_bytes), sr=None, mono=True)
+		print(f"Loaded with soundfile: {data.shape}, {sr}Hz")
+	except Exception as e:
+		print(f"Soundfile failed: {e}")
+		
+		# Method 2: Try librosa with different parameters
+		try:
+			file_storage.seek(0)
+			data, sr = librosa.load(io.BytesIO(file_bytes), sr=None, mono=True)
+			print(f"Loaded with librosa: {data.shape}, {sr}Hz")
+		except Exception as e2:
+			print(f"Librosa failed: {e2}")
+			
+			# Method 3: Try with specific format hints
+			try:
+				file_storage.seek(0)
+				# Try different format hints
+				for fmt in ['WAV', 'MP3', 'M4A', 'WEBM', 'OGG', 'FLAC']:
+					try:
+						file_storage.seek(0)
+						data, sr = sf.read(io.BytesIO(file_bytes), format=fmt, dtype='float32', always_2d=False)
+						if data.ndim > 1:
+							data = np.mean(data, axis=1)
+						print(f"Loaded with soundfile format {fmt}: {data.shape}, {sr}Hz")
+						break
+					except:
+						continue
+				
+				if data is None:
+					# Method 4: Try librosa with different parameters
+					try:
+						file_storage.seek(0)
+						data, sr = librosa.load(io.BytesIO(file_bytes), sr=None, mono=True, offset=0.0, duration=None)
+						print(f"Loaded with librosa (no offset): {data.shape}, {sr}Hz")
+					except Exception as e4:
+						print(f"All methods failed: {e4}")
+						raise Exception(f"Could not load audio file. Supported formats: WAV, MP3, M4A, WEBM, OGG, FLAC. Error: {str(e4)}")
+						
+			except Exception as format_error:
+				print(f"Format-specific loading failed: {format_error}")
+				raise Exception(f"Could not load audio with any method: {str(format_error)}")
 
+	# Ensure we have valid audio data
+	if len(data) == 0:
+		raise Exception("Audio file appears to be empty or corrupted")
+	
+	# Normalize audio data
+	data = librosa.util.normalize(data)
+	
+	# Resample if necessary
 	if sr != target_sr:
 		data = librosa.resample(y=data, orig_sr=sr, target_sr=target_sr)
+	
+	# Normalize audio
+	data = librosa.util.normalize(data)
+	
 	return data.astype(np.float32)
 
 
 def compute_mfcc_features(audio, sr=TARGET_SAMPLE_RATE, n_mfcc=N_MFCC):
-	"""Return both time-averaged vector and time-sequence MFCCs.
+	"""Return both time-averaged vector and time-sequence MFCCs with improved preprocessing.
 	- pooled: shape (n_mfcc,)
 	- sequence: shape (time_steps, n_mfcc)
 	"""
-	mfcc = librosa.feature.mfcc(y=audio, sr=sr, n_mfcc=n_mfcc)  # (n_mfcc, t)
-	pooled = np.mean(mfcc, axis=1)  # (n_mfcc,)
-	sequence = mfcc.T  # (t, n_mfcc)
+	# Remove silence from the beginning and end
+	audio_trimmed, _ = librosa.effects.trim(audio, top_db=20)
+	
+	# If audio is too short, pad it
+	if len(audio_trimmed) < sr * 0.5:  # Less than 0.5 seconds
+		audio_trimmed = np.pad(audio_trimmed, (0, max(0, sr * 0.5 - len(audio_trimmed))), mode='constant')
+	
+	# Compute MFCC with additional features
+	mfcc = librosa.feature.mfcc(y=audio_trimmed, sr=sr, n_mfcc=n_mfcc, n_fft=2048, hop_length=512)
+	
+	# Add delta features for better emotion recognition
+	delta_mfcc = librosa.feature.delta(mfcc)
+	delta2_mfcc = librosa.feature.delta(mfcc, order=2)
+	
+	# Combine MFCC with delta features
+	combined_features = np.vstack([mfcc, delta_mfcc, delta2_mfcc])
+	
+	# Take only the first n_mfcc features to match expected input size
+	combined_features = combined_features[:n_mfcc]
+	
+	pooled = np.mean(combined_features, axis=1)  # (n_mfcc,)
+	sequence = combined_features.T  # (t, n_mfcc)
+	
+	# Normalize features
+	pooled = (pooled - np.mean(pooled)) / (np.std(pooled) + 1e-8)
+	sequence = (sequence - np.mean(sequence)) / (np.std(sequence) + 1e-8)
+	
 	return pooled.astype(np.float32), sequence.astype(np.float32)
 
 
@@ -146,12 +230,45 @@ def predict():
 		return jsonify({"error": "Missing 'audio' file in form-data"}), 400
 
 	file = request.files['audio']
+	
+	# Validate file
+	if file.filename == '':
+		return jsonify({"error": "No file selected"}), 400
+	
+	# Check file size (limit to 10MB)
+	file.seek(0, 2)  # Seek to end
+	file_size = file.tell()
+	file.seek(0)  # Reset to beginning
+	
+	if file_size > 10 * 1024 * 1024:  # 10MB
+		return jsonify({"error": "File too large. Maximum size is 10MB"}), 400
+	
+	if file_size == 0:
+		return jsonify({"error": "Empty file"}), 400
+
 	try:
 		audio = load_audio_from_bytes(file)
+		
+		# Validate audio length
+		if len(audio) < TARGET_SAMPLE_RATE * 0.1:  # Less than 0.1 seconds
+			return jsonify({"error": "Audio too short. Minimum length is 0.1 seconds"}), 400
+		
+		if len(audio) > TARGET_SAMPLE_RATE * 30:  # More than 30 seconds
+			return jsonify({"error": "Audio too long. Maximum length is 30 seconds"}), 400
+		
 		pooled_vec, seq_matrix = compute_mfcc_features(audio)
 		input_tensor = build_model_input(pooled_vec, seq_matrix, model.input_shape)
-		pred = model.predict(input_tensor)
+		
+		# Validate input tensor
+		if np.any(np.isnan(input_tensor)) or np.any(np.isinf(input_tensor)):
+			return jsonify({"error": "Invalid audio data detected"}), 400
+		
+		pred = model.predict(input_tensor, verbose=0)
 		pred = np.asarray(pred)
+		
+		# Validate prediction
+		if np.any(np.isnan(pred)) or np.any(np.isinf(pred)):
+			return jsonify({"error": "Model prediction failed"}), 500
 
 		response = {
 			"raw": pred.tolist(),
@@ -161,20 +278,38 @@ def predict():
 				"pooled_shape": list(pooled_vec.shape),
 				"sequence_shape": list(seq_matrix.shape),
 			},
+			"audio_info": {
+				"duration": len(audio) / TARGET_SAMPLE_RATE,
+				"sample_rate": TARGET_SAMPLE_RATE,
+				"channels": 1
+			}
 		}
 
 		# Optional label mapping if size matches
 		if pred.ndim >= 2 and len(CLASS_LABELS) == pred.shape[-1]:
 			probs = pred[0]
-			pairs = sorted(zip(CLASS_LABELS, probs.tolist()), key=lambda x: x[1], reverse=True)
-			response["labels"] = {
-				"top1": pairs[0][0],
-				"probs": {k: float(v) for k, v in pairs},
-			}
+			
+			# Apply confidence threshold
+			max_prob = np.max(probs)
+			if max_prob < 0.3:  # Low confidence threshold
+				response["labels"] = {
+					"top1": "uncertain",
+					"confidence": float(max_prob),
+					"probs": {k: float(v) for k, v in zip(CLASS_LABELS, probs.tolist())},
+					"note": "Low confidence prediction"
+				}
+			else:
+				pairs = sorted(zip(CLASS_LABELS, probs.tolist()), key=lambda x: x[1], reverse=True)
+				response["labels"] = {
+					"top1": pairs[0][0],
+					"confidence": float(pairs[0][1]),
+					"probs": {k: float(v) for k, v in pairs},
+				}
 
 		return jsonify(response), 200
 	except Exception as e:
-		return jsonify({"error": str(e)}), 500
+		print(f"Prediction error: {str(e)}")
+		return jsonify({"error": f"Audio processing failed: {str(e)}"}), 500
 
 
 if __name__ == '__main__':

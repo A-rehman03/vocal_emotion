@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '../contexts/AuthContext';
-import { Eye, EyeOff, Lock, Mail, User, Brain, Heart, Sparkles } from 'lucide-react';
-import LoadingSpinner from '../components/ui/LoadingSpinner';
+import { Eye, EyeOff, Lock, Mail, User, Brain, ArrowRight, CheckCircle, Shield, Users, TrendingUp, Sparkles } from 'lucide-react';
+import ModernLoader from '../components/ui/ModernLoader';
 
 const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
   const { register: registerUser } = useAuth();
   const navigate = useNavigate();
 
@@ -24,362 +25,389 @@ const Register = () => {
 
   const onSubmit = async (data) => {
     setIsLoading(true);
-    const result = await registerUser(data);
-    if (result.success) {
-      navigate('/dashboard');
+    setError('');
+    
+    try {
+      // Split the name into firstName and lastName
+      const nameParts = data.name.trim().split(' ');
+      const firstName = nameParts[0];
+      const lastName = nameParts.slice(1).join(' ') || firstName; // Use firstName as lastName if only one name provided
+      
+      // Create userData object with the correct structure
+      const emailPrefix = data.email.split('@')[0];
+      // Clean username to only contain letters, numbers, and underscores
+      const username = emailPrefix.replace(/[^a-zA-Z0-9_]/g, '').substring(0, 30);
+      
+      const userData = {
+        firstName,
+        lastName,
+        username: username || `user_${Date.now()}`, // Fallback if email prefix is invalid
+        email: data.email,
+        password: data.password
+      };
+      
+      const result = await registerUser(userData);
+      if (result.success) {
+        // Navigate to OTP verification page with state
+        navigate('/verify-otp', { 
+          state: { 
+            userId: result.userId, 
+            userEmail: data.email 
+          } 
+        });
+      } else {
+        setError(result.error || 'Registration failed');
+      }
+    } catch (err) {
+      setError(err.message || 'Registration failed');
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50/50 via-white to-secondary-50/50 flex items-center justify-center px-4 py-8">
-      <div className="max-w-md w-full space-y-8">
-        {/* Header */}
-        <motion.div className="text-center" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-          <motion.div className="mx-auto h-16 w-16 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center mb-4" animate={{ rotate: [0, 10, -10, 0] }} transition={{ duration: 1.2, repeat: Infinity, repeatDelay: 3 }}>
-            <Brain className="h-8 w-8 text-white" />
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-secondary-50/30 dark:from-dark-900 dark:via-dark-800 dark:to-dark-900 relative overflow-hidden">
+      {/* Animated Background */}
+      <div className="absolute inset-0">
+        <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
+        
+        {/* Floating Orbs */}
+        <div className="absolute top-20 right-10 w-32 h-32 bg-gradient-to-r from-secondary-400/20 to-accent-400/20 rounded-full blur-xl animate-float"></div>
+        <div className="absolute top-40 left-20 w-24 h-24 bg-gradient-to-r from-accent-400/20 to-primary-400/20 rounded-full blur-xl animate-float" style={{ animationDelay: '1s' }}></div>
+        <div className="absolute bottom-20 right-1/4 w-40 h-40 bg-gradient-to-r from-primary-400/20 to-secondary-400/20 rounded-full blur-xl animate-float" style={{ animationDelay: '2s' }}></div>
+      </div>
+
+      {/* Main Content */}
+      <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
+        <motion.div
+          className="w-full max-w-md"
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+        >
+          {/* Header */}
+          <motion.div 
+            className="text-center mb-12"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+          >
+            <motion.div 
+              className="inline-flex items-center space-x-3 bg-white/80 dark:bg-dark-800/80 backdrop-blur-xl text-secondary-700 dark:text-secondary-300 px-6 py-3 rounded-full text-sm font-semibold mb-8 border border-white/20 dark:border-dark-700/50 shadow-xl"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.4, delay: 0.3 }}
+            >
+              <Brain className="h-5 w-5" />
+              <span>Join Our Community</span>
+              <div className="w-2 h-2 bg-secondary-500 rounded-full animate-pulse"></div>
+            </motion.div>
+            
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4">
+              Create Your
+              <span className="gradient-text block">Account</span>
+            </h1>
+            <p className="text-lg text-gray-600 dark:text-gray-300">
+              Start your emotion analysis journey today
+            </p>
           </motion.div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Create Account</h2>
-          <p className="text-gray-600">Join Vocal Emotion AI and start your journey</p>
-        </motion.div>
 
-        {/* Registration Form */}
-        <motion.div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8" initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            {/* Username Field */}
-            <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-                Username
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="username"
-                  type="text"
-                  {...register('username', {
-                    required: 'Username is required',
-                    minLength: {
-                      value: 3,
-                      message: 'Username must be at least 3 characters',
-                    },
-                    maxLength: {
-                      value: 30,
-                      message: 'Username cannot exceed 30 characters',
-                    },
-                    pattern: {
-                      value: /^[a-zA-Z0-9_]+$/,
-                      message: 'Username can only contain letters, numbers, and underscores',
-                    },
-                  })}
-                  className={`input-field pl-10 ${
-                    errors.username ? 'border-red-300 focus:ring-red-500' : ''
-                  }`}
-                  placeholder="Choose a username"
-                />
-              </div>
-              {errors.username && (
-                <p className="mt-1 text-sm text-red-600">{errors.username.message}</p>
-              )}
-            </div>
-
-            {/* First Name Field */}
-            <div>
-              <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
-                First Name
-              </label>
-              <input
-                id="firstName"
-                type="text"
-                {...register('firstName', {
-                  required: 'First name is required',
-                  maxLength: {
-                    value: 50,
-                    message: 'First name cannot exceed 50 characters',
-                  },
-                })}
-                className={`input-field ${
-                  errors.firstName ? 'border-red-300 focus:ring-red-500' : ''
-                }`}
-                placeholder="Enter your first name"
-              />
-              {errors.firstName && (
-                <p className="mt-1 text-sm text-red-600">{errors.firstName.message}</p>
-              )}
-            </div>
-
-            {/* Last Name Field */}
-            <div>
-              <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
-                Last Name
-              </label>
-              <input
-                id="lastName"
-                type="text"
-                {...register('lastName', {
-                  required: 'Last name is required',
-                  maxLength: {
-                    value: 50,
-                    message: 'Last name cannot exceed 50 characters',
-                  },
-                })}
-                className={`input-field ${
-                  errors.lastName ? 'border-red-300 focus:ring-red-500' : ''
-                }`}
-                placeholder="Enter your last name"
-              />
-              {errors.lastName && (
-                <p className="mt-1 text-sm text-red-600">{errors.lastName.message}</p>
-              )}
-            </div>
-
-            {/* Email Field */}
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Email Address
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="email"
-                  type="email"
-                  {...register('email', {
-                    required: 'Email is required',
-                    pattern: {
-                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                      message: 'Invalid email address',
-                    },
-                  })}
-                  className={`input-field pl-10 ${
-                    errors.email ? 'border-red-300 focus:ring-red-500' : ''
-                  }`}
-                  placeholder="Enter your email"
-                />
-              </div>
-              {errors.email && (
-                <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
-              )}
-            </div>
-
-            {/* Password Field */}
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Password
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  {...register('password', {
-                    required: 'Password is required',
-                    minLength: {
-                      value: 6,
-                      message: 'Password must be at least 6 characters',
-                    },
-                  })}
-                  className={`input-field pl-10 pr-10 ${
-                    errors.password ? 'border-red-300 focus:ring-red-500' : ''
-                  }`}
-                  placeholder="Create a password"
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                  ) : (
-                    <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                  )}
-                </button>
-              </div>
-              {errors.password && (
-                <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
-              )}
-            </div>
-
-            {/* Confirm Password Field */}
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
-                Confirm Password
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="confirmPassword"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  {...register('confirmPassword', {
-                    required: 'Please confirm your password',
-                    validate: (value) =>
-                      value === password || 'Passwords do not match',
-                  })}
-                  className={`input-field pl-10 pr-10 ${
-                    errors.confirmPassword ? 'border-red-300 focus:ring-red-500' : ''
-                  }`}
-                  placeholder="Confirm your password"
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                >
-                  {showConfirmPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                  ) : (
-                    <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                  )}
-                </button>
-              </div>
-              {errors.confirmPassword && (
-                <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>
-              )}
-            </div>
-
-            {/* Terms and Conditions */}
-            <div className="flex items-start">
-              <div className="flex items-center h-5">
-                <input
-                  id="terms"
-                  name="terms"
-                  type="checkbox"
-                  {...register('terms', {
-                    required: 'You must accept the terms and conditions',
-                  })}
-                  className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                />
-              </div>
-              <div className="ml-3 text-sm">
-                <label htmlFor="terms" className="text-gray-700">
-                  I agree to the{' '}
-                  <Link
-                    to="/terms"
-                    className="text-primary-600 hover:text-primary-500 underline"
-                  >
-                    Terms and Conditions
-                  </Link>{' '}
-                  and{' '}
-                  <Link
-                    to="/privacy"
-                    className="text-primary-600 hover:text-primary-500 underline"
-                  >
-                    Privacy Policy
-                  </Link>
+          {/* Registration Form */}
+          <motion.div 
+            className="card-gradient"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+          >
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              {/* Name Field */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                  Full Name
                 </label>
-                {errors.terms && (
-                  <p className="mt-1 text-red-600">{errors.terms.message}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Submit Button */}
-            <motion.button
-              type="submit"
-              disabled={isLoading}
-              className="w-full btn-primary py-3 text-base font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              whileTap={{ scale: 0.98 }}
-            >
-              {isLoading ? (
-                <div className="flex items-center justify-center">
-                  <LoadingSpinner size="sm" className="mr-2" />
-                  Creating account...
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <User className="h-5 w-5 text-secondary-500" />
+                  </div>
+                  <input
+                    {...register('name', {
+                      required: 'Name is required',
+                      minLength: {
+                        value: 2,
+                        message: 'Name must be at least 2 characters'
+                      }
+                    })}
+                    type="text"
+                    className="input-field pl-12"
+                    placeholder="Enter your full name"
+                  />
                 </div>
-              ) : (
-                'Create Account'
-              )}
-            </motion.button>
-          </form>
-
-          {/* Divider */}
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
+                <AnimatePresence>
+                  {errors.name && (
+                    <motion.p
+                      className="mt-2 text-sm text-red-500 flex items-center space-x-1"
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -10 }}
+                    >
+                      <span>⚠️</span>
+                      <span>{errors.name.message}</span>
+                    </motion.p>
+                  )}
+                </AnimatePresence>
               </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Or continue with</span>
+
+              {/* Email Field */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Mail className="h-5 w-5 text-secondary-500" />
+                  </div>
+                  <input
+                    {...register('email', {
+                      required: 'Email is required',
+                      pattern: {
+                        value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                        message: 'Invalid email address'
+                      }
+                    })}
+                    type="email"
+                    className="input-field pl-12"
+                    placeholder="Enter your email"
+                  />
+                </div>
+                <AnimatePresence>
+                  {errors.email && (
+                    <motion.p
+                      className="mt-2 text-sm text-red-500 flex items-center space-x-1"
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -10 }}
+                    >
+                      <span>⚠️</span>
+                      <span>{errors.email.message}</span>
+                    </motion.p>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Password Field */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                  Password
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Lock className="h-5 w-5 text-secondary-500" />
+                  </div>
+                  <input
+                    {...register('password', {
+                      required: 'Password is required',
+                      minLength: {
+                        value: 6,
+                        message: 'Password must be at least 6 characters'
+                      },
+                      pattern: {
+                        value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+                        message: 'Password must contain uppercase, lowercase, and number'
+                      }
+                    })}
+                    type={showPassword ? 'text' : 'password'}
+                    className="input-field pl-12 pr-12"
+                    placeholder="Create a password"
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 pr-4 flex items-center"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors" />
+                    ) : (
+                      <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors" />
+                    )}
+                  </button>
+                </div>
+                <AnimatePresence>
+                  {errors.password && (
+                    <motion.p
+                      className="mt-2 text-sm text-red-500 flex items-center space-x-1"
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -10 }}
+                    >
+                      <span>⚠️</span>
+                      <span>{errors.password.message}</span>
+                    </motion.p>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Confirm Password Field */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                  Confirm Password
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Lock className="h-5 w-5 text-secondary-500" />
+                  </div>
+                  <input
+                    {...register('confirmPassword', {
+                      required: 'Please confirm your password',
+                      validate: value => value === password || 'Passwords do not match'
+                    })}
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    className="input-field pl-12 pr-12"
+                    placeholder="Confirm your password"
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 pr-4 flex items-center"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors" />
+                    ) : (
+                      <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors" />
+                    )}
+                  </button>
+                </div>
+                <AnimatePresence>
+                  {errors.confirmPassword && (
+                    <motion.p
+                      className="mt-2 text-sm text-red-500 flex items-center space-x-1"
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -10 }}
+                    >
+                      <span>⚠️</span>
+                      <span>{errors.confirmPassword.message}</span>
+                    </motion.p>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Password Requirements */}
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+                <p className="text-sm font-semibold text-blue-700 dark:text-blue-300 mb-3 flex items-center space-x-2">
+                  <Shield className="w-4 h-4" />
+                  <span>Password Requirements:</span>
+                </p>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {[
+                    { text: 'At least 6 characters', valid: password?.length >= 6 },
+                    { text: 'One uppercase letter', valid: /[A-Z]/.test(password || '') },
+                    { text: 'One lowercase letter', valid: /[a-z]/.test(password || '') },
+                    { text: 'One number', valid: /\d/.test(password || '') }
+                  ].map(({ text, valid }, i) => (
+                    <motion.div
+                      key={i}
+                      className="flex items-center space-x-2"
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.1 }}
+                    >
+                      <motion.div
+                        animate={{ scale: valid ? 1.2 : 1 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <CheckCircle className={`w-3 h-3 ${valid ? 'text-green-500' : 'text-gray-400'}`} />
+                      </motion.div>
+                      <span className={valid ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}>{text}</span>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Error Message */}
+              <AnimatePresence>
+                {error && (
+                  <motion.div
+                    className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl"
+                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                  >
+                    <p className="text-sm text-red-600 dark:text-red-400 flex items-center space-x-2">
+                      <span>🚨</span>
+                      <span>{error}</span>
+                    </p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Submit Button */}
+              <motion.button
+                type="submit"
+                disabled={isLoading}
+                className="btn-primary w-full flex items-center justify-center space-x-3"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                {isLoading ? (
+                  <ModernLoader size="sm" />
+                ) : (
+                  <>
+                    <span>Create Account</span>
+                    <ArrowRight className="h-5 w-5" />
+                  </>
+                )}
+              </motion.button>
+            </form>
+
+            {/* Divider */}
+            <div className="mt-8 mb-8">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-200 dark:border-dark-700" />
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-4 bg-white dark:bg-dark-800 text-gray-500 dark:text-gray-400">
+                    Already have an account?
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Social Registration Buttons */}
-          <div className="mt-6 grid grid-cols-2 gap-3">
-            <motion.button whileHover={{ y: -2 }} className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 transition-colors">
-              <svg className="w-5 h-5" viewBox="0 0 24 24">
-                <path
-                  fill="currentColor"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                />
-                <path
-                  fill="currentColor"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                />
-                <path
-                  fill="currentColor"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                />
-                <path
-                  fill="currentColor"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                />
-              </svg>
-              <span className="ml-2">Google</span>
-            </motion.button>
-            <motion.button whileHover={{ y: -2 }} className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 transition-colors">
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z"/>
-              </svg>
-              <span className="ml-2">Twitter</span>
-            </motion.button>
-          </div>
-        </motion.div>
+            {/* Login Link */}
+            <div className="text-center">
+              <Link
+                to="/login"
+                className="inline-flex items-center space-x-2 text-secondary-600 dark:text-secondary-400 hover:text-secondary-700 dark:hover:text-secondary-300 font-semibold transition-colors duration-200 group"
+              >
+                <span>Sign in instead</span>
+                <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </div>
+          </motion.div>
 
-        {/* Sign In Link */}
-        <motion.div className="text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
-          <p className="text-gray-600">
-            Already have an account?{' '}
-            <Link
-              to="/login"
-              className="font-medium text-primary-600 hover:text-primary-500 transition-colors"
-            >
-              Sign in here
-            </Link>
-          </p>
-        </motion.div>
-
-        {/* Features Preview */}
-        <motion.div className="bg-white/50 backdrop-blur-sm rounded-xl p-6 border border-white/20" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
-          <h3 className="text-lg font-semibold text-gray-800 mb-4 text-center">
-            What you'll get with Vocal Emotion AI
-          </h3>
-          <div className="space-y-3">
-            <div className="flex items-center space-x-3">
-              <div className="h-8 w-8 bg-primary-100 rounded-full flex items-center justify-center">
-                <Brain className="h-4 w-4 text-primary-600" />
+          {/* Footer with stats */}
+          <motion.div
+            className="text-center mt-12"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.8 }}
+          >
+            <div className="flex justify-center space-x-8 text-sm text-gray-500 dark:text-gray-400">
+              <div className="flex items-center space-x-2">
+                <Users className="h-4 w-4" />
+                <span className="font-semibold">10K+ Users</span>
               </div>
-              <span className="text-sm text-gray-700">AI-powered emotion recognition</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="h-8 w-8 bg-secondary-100 rounded-full flex items-center justify-center">
-                <Heart className="h-4 w-4 text-secondary-600" />
+              <div className="flex items-center space-x-2">
+                <TrendingUp className="h-4 w-4" />
+                <span className="font-semibold">99.9% Accuracy</span>
               </div>
-              <span className="text-sm text-gray-700">Personalized emotional responses</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="h-8 w-8 bg-emotion-excited/20 rounded-full flex items-center justify-center">
-                <Sparkles className="h-4 w-4 text-emotion-excited" />
+              <div className="flex items-center space-x-2">
+                <Shield className="h-4 w-4" />
+                <span className="font-semibold">Secure</span>
               </div>
-              <span className="text-sm text-gray-700">Real-time voice analysis</span>
             </div>
-          </div>
+          </motion.div>
         </motion.div>
       </div>
     </div>

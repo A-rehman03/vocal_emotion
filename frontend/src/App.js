@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 import AnimatedBackground from './components/ui/AnimatedBackground';
@@ -10,11 +11,14 @@ import PageTransition from './components/ui/PageTransition';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import VerifyOTP from './pages/VerifyOTP';
 import Dashboard from './pages/Dashboard';
-// import Chat from './pages/Chat';
+import Chat from './pages/Chat';
 import EmotionAnalysis from './pages/EmotionAnalysis';
-// import Profile from './pages/Profile';
+import Profile from './pages/Profile';
+import Analytics from './pages/Analytics';
 import LoadingSpinner from './components/ui/LoadingSpinner';
+import ErrorBoundary from './components/ui/ErrorBoundary';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -57,8 +61,6 @@ const PublicRoute = ({ children }) => {
 };
 
 function AppContent() {
-  const { user } = useAuth();
-
   return (
     <AnimatedBackground>
       <div className="min-h-screen bg-transparent flex flex-col">
@@ -84,6 +86,14 @@ function AppContent() {
                 } 
               />
               <Route 
+                path="/verify-otp" 
+                element={
+                  <PublicRoute>
+                    <VerifyOTP />
+                  </PublicRoute>
+                } 
+              />
+              <Route 
                 path="/dashboard" 
                 element={
                   <ProtectedRoute>
@@ -99,6 +109,30 @@ function AppContent() {
                   </ProtectedRoute>
                 } 
               />
+              <Route 
+                path="/chat" 
+                element={
+                  <ProtectedRoute>
+                    <Chat />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/profile" 
+                element={
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/analytics" 
+                element={
+                  <ProtectedRoute>
+                    <Analytics />
+                  </ProtectedRoute>
+                } 
+              />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </PageTransition>
@@ -111,37 +145,41 @@ function AppContent() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Router>
-          <AppContent />
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: '#363636',
-                color: '#fff',
-              },
-              success: {
-                duration: 3000,
-                iconTheme: {
-                  primary: '#10b981',
-                  secondary: '#fff',
-                },
-              },
-              error: {
-                duration: 5000,
-                iconTheme: {
-                  primary: '#ef4444',
-                  secondary: '#fff',
-                },
-              },
-            }}
-          />
-        </Router>
-      </AuthProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <AuthProvider>
+            <Router>
+              <AppContent />
+              <Toaster
+                position="top-right"
+                toastOptions={{
+                  duration: 4000,
+                  style: {
+                    background: 'var(--toast-bg, #363636)',
+                    color: 'var(--toast-color, #fff)',
+                  },
+                  success: {
+                    duration: 3000,
+                    iconTheme: {
+                      primary: '#10b981',
+                      secondary: '#fff',
+                    },
+                  },
+                  error: {
+                    duration: 5000,
+                    iconTheme: {
+                      primary: '#ef4444',
+                      secondary: '#fff',
+                    },
+                  },
+                }}
+              />
+            </Router>
+          </AuthProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 
