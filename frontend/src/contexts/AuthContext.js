@@ -69,11 +69,30 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Register function
+  // Register function (now returns userId for OTP verification)
   const register = async (userData) => {
     try {
       setLoading(true);
       const response = await axios.post('/api/auth/register', userData);
+      
+      const { userId, otp } = response.data;
+      
+      toast.success('Registration successful! Please check your email for verification code.');
+      return { success: true, userId, otp };
+    } catch (error) {
+      const message = error.response?.data?.message || 'Registration failed';
+      toast.error(message);
+      return { success: false, error: message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Verify OTP function
+  const verifyOTP = async (userId, otp) => {
+    try {
+      setLoading(true);
+      const response = await axios.post('/api/auth/verify-otp', { userId, otp });
       
       const { token: newToken, user: newUser } = response.data;
       
@@ -81,10 +100,27 @@ export const AuthProvider = ({ children }) => {
       setToken(newToken);
       setUser(newUser);
       
-      toast.success('Registration successful!');
+      toast.success('Email verified successfully!');
       return { success: true };
     } catch (error) {
-      const message = error.response?.data?.message || 'Registration failed';
+      const message = error.response?.data?.message || 'OTP verification failed';
+      // Don't show toast error here, let the component handle it
+      return { success: false, error: message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Resend OTP function
+  const resendOTP = async (userId) => {
+    try {
+      setLoading(true);
+      const response = await axios.post('/api/auth/resend-otp', { userId });
+      
+      toast.success('OTP resent successfully!');
+      return { success: true, otp: response.data.otp };
+    } catch (error) {
+      const message = error.response?.data?.message || 'Failed to resend OTP';
       toast.error(message);
       return { success: false, error: message };
     } finally {
@@ -178,6 +214,8 @@ export const AuthProvider = ({ children }) => {
     token,
     login,
     register,
+    verifyOTP,
+    resendOTP,
     logout,
     updateProfile,
     updatePreferences,

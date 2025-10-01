@@ -30,52 +30,126 @@ router.post('/analyze', protect, upload.single('audio'), async (req, res) => {
       return res.status(400).json({ message: 'No audio file provided' });
     }
 
-    // Here you would implement the actual emotion recognition logic
-    // This is a placeholder for the AI emotion detection
     const audioBuffer = req.file.buffer;
     const audioType = req.file.mimetype;
     
-    // Mock emotion analysis (replace with actual AI model)
-    const emotions = ['happy', 'sad', 'angry', 'neutral', 'excited', 'calm'];
-    const detectedEmotion = emotions[Math.floor(Math.random() * emotions.length)];
-    const confidence = Math.random() * 0.4 + 0.6; // Random confidence between 0.6-1.0
-    
-    // Mock response based on detected emotion
-    let response = '';
-    switch (detectedEmotion) {
-      case 'happy':
-        response = "I can hear the joy in your voice! That's wonderful to hear.";
-        break;
-      case 'sad':
-        response = "I sense some sadness in your tone. Would you like to talk about what's on your mind?";
-        break;
-      case 'angry':
-        response = "I notice some frustration in your voice. Let's work through this together.";
-        break;
-      case 'excited':
-        response = "Your excitement is contagious! I'm excited to hear more about this.";
-        break;
-      case 'calm':
-        response = "You sound very calm and centered. That's a wonderful state to be in.";
-        break;
-      default:
-        response = "I'm here to listen and help. How are you feeling today?";
-    }
+    // Send audio to Python emotion analysis service
+    try {
+      const formData = new FormData();
+      formData.append('audio', audioBuffer, {
+        filename: req.file.originalname || 'audio.wav',
+        contentType: audioType
+      });
 
-    res.json({
-      message: 'Emotion analysis completed',
-      audioInfo: {
-        originalName: req.file.originalname,
-        size: req.file.size,
-        mimetype: audioType
-      },
-      analysis: {
-        detectedEmotion,
-        confidence: confidence.toFixed(2),
-        timestamp: new Date().toISOString()
-      },
-      response
-    });
+      const pythonResponse = await fetch('http://localhost:5001/predict', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!pythonResponse.ok) {
+        throw new Error(`Python service error: ${pythonResponse.status}`);
+      }
+
+      const pythonData = await pythonResponse.json();
+      
+      if (pythonData.error) {
+        throw new Error(pythonData.error);
+      }
+
+      // Extract emotion from Python response
+      const detectedEmotion = pythonData.labels?.top1 || 'neutral';
+      const confidence = pythonData.labels?.confidence || 0.5;
+      
+      // Generate contextual response based on detected emotion
+      let response = '';
+      switch (detectedEmotion) {
+        case 'happy':
+          response = "I can hear the joy in your voice! That's wonderful to hear. What's making you feel so happy today?";
+          break;
+        case 'sad':
+          response = "I sense some sadness in your tone. It's okay to feel this way. Would you like to talk about what's on your mind?";
+          break;
+        case 'angry':
+          response = "I notice some frustration in your voice. Let's take a moment to breathe and work through this together. What's bothering you?";
+          break;
+        case 'fear':
+          response = "I can hear some worry in your voice. You're not alone, and we can work through this together. What's concerning you?";
+          break;
+        case 'surprise':
+          response = "You sound surprised! I'd love to hear more about what caught you off guard.";
+          break;
+        case 'disgust':
+          response = "I can sense some strong feelings in your voice. What's on your mind right now?";
+          break;
+        case 'neutral':
+          response = "I'm here to listen and help. How are you feeling today?";
+          break;
+        default:
+          response = "Thank you for sharing that with me. I'm here to listen and help however I can.";
+      }
+
+      res.json({
+        message: 'Emotion analysis completed',
+        audioInfo: {
+          originalName: req.file.originalname,
+          size: req.file.size,
+          mimetype: audioType,
+          duration: pythonData.audio_info?.duration || 0
+        },
+        analysis: {
+          detectedEmotion,
+          confidence: parseFloat(confidence),
+          timestamp: new Date().toISOString(),
+          rawPrediction: pythonData.raw
+        },
+        response
+      });
+
+    } catch (pythonError) {
+      console.error('Python service error:', pythonError);
+      
+      // Fallback to mock analysis if Python service is unavailable
+      const emotions = ['happy', 'sad', 'angry', 'neutral', 'excited', 'calm'];
+      const detectedEmotion = emotions[Math.floor(Math.random() * emotions.length)];
+      const confidence = Math.random() * 0.4 + 0.6;
+      
+      let response = '';
+      switch (detectedEmotion) {
+        case 'happy':
+          response = "I can hear the joy in your voice! That's wonderful to hear.";
+          break;
+        case 'sad':
+          response = "I sense some sadness in your tone. Would you like to talk about what's on your mind?";
+          break;
+        case 'angry':
+          response = "I notice some frustration in your voice. Let's work through this together.";
+          break;
+        case 'excited':
+          response = "Your excitement is contagious! I'm excited to hear more about this.";
+          break;
+        case 'calm':
+          response = "You sound very calm and centered. That's a wonderful state to be in.";
+          break;
+        default:
+          response = "I'm here to listen and help. How are you feeling today?";
+      }
+
+      res.json({
+        message: 'Emotion analysis completed (fallback mode)',
+        audioInfo: {
+          originalName: req.file.originalname,
+          size: req.file.size,
+          mimetype: audioType
+        },
+        analysis: {
+          detectedEmotion,
+          confidence: confidence.toFixed(2),
+          timestamp: new Date().toISOString(),
+          note: 'Using fallback analysis - Python service unavailable'
+        },
+        response
+      });
+    }
 
   } catch (error) {
     console.error('Emotion analysis error:', error);

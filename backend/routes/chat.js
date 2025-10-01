@@ -104,48 +104,99 @@ router.post('/message', protect, [
 // @access  Private
 router.post('/voice', protect, async (req, res) => {
   try {
-    const { audioData, emotion, context } = req.body;
+    const { audioData, emotion, context, conversationId } = req.body;
 
     if (!audioData) {
       return res.status(400).json({ message: 'Audio data is required' });
     }
 
-    // Here you would:
-    // 1. Process the audio data
-    // 2. Convert speech to text
-    // 3. Analyze emotion from voice
-    // 4. Generate AI response
-    // 5. Convert response to speech (optional)
+    // Process the voice message through emotion analysis
+    try {
+      // Convert base64 audio data to buffer
+      const audioBuffer = Buffer.from(audioData, 'base64');
+      
+      // Send to emotion analysis service
+      const formData = new FormData();
+      formData.append('audio', audioBuffer, {
+        filename: 'voice-message.wav',
+        contentType: 'audio/wav'
+      });
 
-    // Mock processing
-    const mockTranscription = "This is a mock transcription of your voice message.";
-    const detectedEmotion = emotion || ['happy', 'sad', 'angry', 'neutral', 'excited', 'calm'][Math.floor(Math.random() * 6)];
-    
-    let aiResponse = '';
-    switch (detectedEmotion) {
-      case 'happy':
-        aiResponse = "I can hear the joy in your voice! That's wonderful to hear.";
-        break;
-      case 'sad':
-        aiResponse = "I sense some sadness in your tone. Would you like to talk about what's on your mind?";
-        break;
-      case 'angry':
-        aiResponse = "I notice some frustration in your voice. Let's work through this together.";
-        break;
-      default:
-        aiResponse = "Thank you for your voice message. I'm here to listen and help.";
+      const emotionResponse = await fetch('http://localhost:5001/predict', {
+        method: 'POST',
+        body: formData
+      });
+
+      let detectedEmotion = 'neutral';
+      let confidence = 0.5;
+      let transcription = "Voice message received";
+
+      if (emotionResponse.ok) {
+        const emotionData = await emotionResponse.json();
+        detectedEmotion = emotionData.labels?.top1 || 'neutral';
+        confidence = emotionData.labels?.confidence || 0.5;
+        transcription = `Voice message (${detectedEmotion})`;
+      }
+
+      // Generate contextual AI response based on detected emotion
+      let aiResponse = '';
+      switch (detectedEmotion) {
+        case 'happy':
+          aiResponse = "I can hear the joy in your voice! That's wonderful to hear. What's making you feel so happy today?";
+          break;
+        case 'sad':
+          aiResponse = "I sense some sadness in your tone. It's okay to feel this way. Would you like to talk about what's on your mind?";
+          break;
+        case 'angry':
+          aiResponse = "I notice some frustration in your voice. Let's take a moment to breathe and work through this together. What's bothering you?";
+          break;
+        case 'fear':
+          aiResponse = "I can hear some worry in your voice. You're not alone, and we can work through this together. What's concerning you?";
+          break;
+        case 'surprise':
+          aiResponse = "You sound surprised! I'd love to hear more about what caught you off guard.";
+          break;
+        case 'disgust':
+          aiResponse = "I can sense some strong feelings in your voice. What's on your mind right now?";
+          break;
+        case 'neutral':
+          aiResponse = "I'm here to listen and help. How are you feeling today?";
+          break;
+        default:
+          aiResponse = "Thank you for your voice message. I'm here to listen and help however I can.";
+      }
+
+      const currentConversationId = conversationId || `voice_conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      res.json({
+        message: 'Voice message processed successfully',
+        conversationId: currentConversationId,
+        transcription,
+        detectedEmotion,
+        confidence,
+        aiResponse,
+        timestamp: new Date().toISOString(),
+        context: context || {}
+      });
+
+    } catch (processingError) {
+      console.error('Voice processing error:', processingError);
+      
+      // Fallback response
+      const fallbackEmotion = emotion || 'neutral';
+      const fallbackResponse = "I received your voice message. I'm here to listen and help. How are you feeling today?";
+      
+      res.json({
+        message: 'Voice message processed (fallback mode)',
+        conversationId: conversationId || `voice_conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        transcription: "Voice message received",
+        detectedEmotion: fallbackEmotion,
+        confidence: 0.5,
+        aiResponse: fallbackResponse,
+        timestamp: new Date().toISOString(),
+        note: 'Using fallback processing - emotion analysis unavailable'
+      });
     }
-
-    const conversationId = `voice_conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    res.json({
-      message: 'Voice message processed successfully',
-      conversationId,
-      transcription: mockTranscription,
-      detectedEmotion,
-      aiResponse,
-      timestamp: new Date().toISOString()
-    });
 
   } catch (error) {
     console.error('Voice chat error:', error);

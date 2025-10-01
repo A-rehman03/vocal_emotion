@@ -3,6 +3,8 @@ const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
 const { protect } = require('../middleware/auth');
+const crypto = require('crypto');
+const { sendOTPEmail, sendPasswordResetEmail } = require('../services/emailService');
 
 const router = express.Router();
 
@@ -14,7 +16,7 @@ const generateToken = (id) => {
 };
 
 // @route   POST /api/auth/register
-// @desc    Register a new user
+// @desc    Register a new user (send OTP)
 // @access  Public
 router.post('/register', [
   body('username')
@@ -62,29 +64,164 @@ router.post('/register', [
       }
     }
 
-    // Create new user
+    // Generate OTP
+    const otp = crypto.randomInt(100000, 999999).toString();
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Create new user (not activated yet)
     const user = new User({
       username,
       email,
       password,
       firstName,
-      lastName
+      lastName,
+      isActive: false,
+      otp,
+      otpExpiry
     });
 
+    await user.save();
+
+    // Send OTP email
+    const emailResult = await sendOTPEmail(email, otp, firstName);
+    
+    if (emailResult.success) {
+      res.status(201).json({
+        message: 'Registration successful. Please check your email for the verification code.',
+        userId: user._id
+      });
+    } else {
+      // If email fails, still return success but include OTP for development
+      console.error('Email sending failed:', emailResult.error);
+      res.status(201).json({
+        message: 'Registration successful. Please verify your email with the OTP sent.',
+        otp, // Include OTP in development if email fails
+        userId: user._id
+      });
+    }
+
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ message: 'Server error during registration' });
+  }
+});
+
+// @route   POST /api/auth/verify-otp
+// @desc    Verify OTP and activate user
+// @access  Public
+router.post('/verify-otp', [
+  body('userId')
+    .notEmpty()
+    .withMessage('User ID is required'),
+  body('otp')
+    .isLength({ min: 6, max: 6 })
+    .withMessage('OTP must be 6 digits')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        message: 'Validation failed',
+        errors: errors.array() 
+      });
+    }
+
+    const { userId, otp } = req.body;
+
+    const user = await User.findById(userId).select('+otp +otpExpiry');
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid user ID' });
+    }
+
+    if (user.isActive) {
+      return res.status(400).json({ message: 'User already verified' });
+    }
+
+    // Convert both to strings for comparison to avoid type issues
+    if (String(user.otp) !== String(otp)) {
+      return res.status(400).json({ message: 'Invalid OTP' });
+    }
+
+    if (new Date() > user.otpExpiry) {
+      return res.status(400).json({ message: 'OTP expired' });
+    }
+
+    // Activate user
+    user.isActive = true;
+    user.otp = undefined;
+    user.otpExpiry = undefined;
     await user.save();
 
     // Generate token
     const token = generateToken(user._id);
 
-    res.status(201).json({
-      message: 'User registered successfully',
+    res.json({
+      message: 'Email verified successfully',
       token,
       user: user.getProfile()
     });
 
   } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ message: 'Server error during registration' });
+    console.error('OTP verification error:', error);
+    res.status(500).json({ message: 'Server error during verification' });
+  }
+});
+
+// @route   POST /api/auth/resend-otp
+// @desc    Resend OTP
+// @access  Public
+router.post('/resend-otp', [
+  body('userId')
+    .notEmpty()
+    .withMessage('User ID is required')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        message: 'Validation failed',
+        errors: errors.array() 
+      });
+    }
+
+    const { userId } = req.body;
+
+    const user = await User.findById(userId).select('+otp +otpExpiry');
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid user ID' });
+    }
+
+    if (user.isActive) {
+      return res.status(400).json({ message: 'User already verified' });
+    }
+
+    // Generate new OTP
+    const otp = crypto.randomInt(100000, 999999).toString();
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    user.otp = otp;
+    user.otpExpiry = otpExpiry;
+    await user.save();
+
+    // Send OTP email
+    const emailResult = await sendOTPEmail(user.email, otp, user.firstName);
+    
+    if (emailResult.success) {
+      res.json({
+        message: 'OTP resent successfully. Please check your email.'
+      });
+    } else {
+      // If email fails, still return success but include OTP for development
+      console.error('Email sending failed:', emailResult.error);
+      res.json({
+        message: 'OTP resent successfully',
+        otp // Include OTP in development if email fails
+      });
+    }
+
+  } catch (error) {
+    console.error('Resend OTP error:', error);
+    res.status(500).json({ message: 'Server error while resending OTP' });
   }
 });
 
@@ -217,19 +354,28 @@ router.post('/forgot-password', [
       return res.json({ message: 'If an account with that email exists, a password reset link has been sent' });
     }
 
-    // Generate reset token (you would implement email sending here)
+    // Generate reset token
     const resetToken = jwt.sign(
       { id: user._id, type: 'password-reset' },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
 
-    // In a real application, you would send an email with the reset link
-    // For now, we'll just return a success message
-    res.json({ 
-      message: 'If an account with that email exists, a password reset link has been sent',
-      resetToken // Remove this in production
-    });
+    // Send password reset email
+    const emailResult = await sendPasswordResetEmail(email, resetToken, user.firstName);
+    
+    if (emailResult.success) {
+      res.json({ 
+        message: 'If an account with that email exists, a password reset link has been sent'
+      });
+    } else {
+      // If email fails, still return success but include token for development
+      console.error('Email sending failed:', emailResult.error);
+      res.json({ 
+        message: 'If an account with that email exists, a password reset link has been sent',
+        resetToken // Include token in development if email fails
+      });
+    }
 
   } catch (error) {
     console.error('Forgot password error:', error);

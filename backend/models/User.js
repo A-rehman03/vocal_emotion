@@ -42,7 +42,15 @@ const userSchema = new mongoose.Schema({
   },
   isActive: {
     type: Boolean,
-    default: true
+    default: false
+  },
+  otp: {
+    type: String,
+    select: false
+  },
+  otpExpiry: {
+    type: Date,
+    select: false
   },
   lastLogin: {
     type: Date,
