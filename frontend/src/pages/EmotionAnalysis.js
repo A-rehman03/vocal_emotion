@@ -1,12 +1,12 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  Mic, 
-  MicOff, 
-  Upload, 
-  Brain, 
-  AlertCircle, 
-  CheckCircle, 
+import {
+  Mic,
+  MicOff,
+  Upload,
+  Brain,
+  AlertCircle,
+  CheckCircle,
   Play,
   Pause,
   RotateCcw,
@@ -52,39 +52,73 @@ export default function EmotionAnalysis() {
     setLoading(true);
     setResult(null);
     setAudioUrl(URL.createObjectURL(file));
-    
+
     try {
       // Validate file size
       if (file.size > 10 * 1024 * 1024) { // 10MB
         throw new Error('File too large. Maximum size is 10MB');
       }
-      
+
       // Validate file type
       const allowedTypes = ['audio/wav', 'audio/mp3', 'audio/mpeg', 'audio/m4a', 'audio/webm', 'audio/ogg'];
       if (!allowedTypes.includes(file.type) && !file.name.match(/\.(wav|mp3|m4a|webm|ogg)$/i)) {
         throw new Error('Unsupported file format. Please use WAV, MP3, M4A, WebM, or OGG files');
       }
-      
+
       const formData = new FormData();
       formData.append('audio', file);
-      
-      const res = await fetch(`${API_URL}/predict`, {
+
+      const token = localStorage.getItem('token');
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+
+      const res = await fetch('/api/emotion/analyze', {
         method: 'POST',
+        headers: headers,
         body: formData,
       });
-      
+
       const data = await res.json();
-      
+
       if (!res.ok) {
-        throw new Error(data.error || 'Prediction failed');
+        throw new Error(data.message || data.error || 'Prediction failed');
       }
-      
+
+      // Adapt Node backend response to expected format
+      let finalResult = data;
+      if (data.analysis && !data.labels) {
+        const emotion = data.analysis.detectedEmotion.toLowerCase();
+        const confidence = parseFloat(data.analysis.confidence || 0.8);
+
+        // Construct probabilities
+        const emotions = ['happy', 'sad', 'angry', 'neutral', 'excited', 'calm'];
+        const probs = {};
+        const remainingProb = (1 - confidence) / (emotions.length - 1);
+
+        emotions.forEach(e => {
+          probs[e] = e.toLowerCase() === emotion ? confidence : remainingProb;
+        });
+
+        finalResult = {
+          labels: {
+            top1: emotion,
+            probs: probs
+          },
+          audio_info: data.audioInfo || {
+            duration: 0,
+            sample_rate: 16000,
+            channels: 1
+          },
+          input_shape: [1, 16000], // Mock data for UI
+          features: { sequence_shape: [1, 128, 128] } // Mock data for UI
+        };
+      }
+
       // Validate response
-      if (!data.labels || !data.labels.top1) {
+      if (!finalResult.labels || !finalResult.labels.top1) {
         throw new Error('Invalid response from server');
       }
-      
-      setResult(data);
+
+      setResult(finalResult);
     } catch (e) {
       console.error('Upload error:', e);
       setError(e.message);
@@ -102,15 +136,15 @@ export default function EmotionAnalysis() {
     setError('');
     setRecordingTime(0);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
+      const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           sampleRate: 16000,
           channelCount: 1
-        } 
+        }
       });
-      
+
       // Try different MIME types in order of preference
       const mimeTypes = [
         'audio/webm;codecs=opus',
@@ -120,27 +154,27 @@ export default function EmotionAnalysis() {
         'audio/wav',
         'audio/ogg;codecs=opus'
       ];
-      
+
       let mimeType = mimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || 'audio/webm';
       console.log('Using MIME type:', mimeType);
-      
-      const mr = new MediaRecorder(stream, { 
+
+      const mr = new MediaRecorder(stream, {
         mimeType,
         audioBitsPerSecond: 128000
       });
       setChunks([]);
-      
+
       mr.ondataavailable = (e) => {
         if (e.data && e.data.size > 0) {
           setChunks((prev) => [...prev, e.data]);
         }
       };
-      
+
       mr.onstop = async () => {
         try {
           const blob = new Blob(chunks, { type: mr.mimeType });
           console.log('Recorded blob:', blob.type, blob.size, 'bytes');
-          
+
           // Always try to convert to WAV for better backend compatibility
           try {
             const wavBlob = await convertToWav(blob);
@@ -160,7 +194,7 @@ export default function EmotionAnalysis() {
           setError('Failed to process recorded audio. Please try again.');
         }
       };
-      
+
       mediaRecorderRef.current = mr;
       mr.start(100); // Collect data every 100ms
       setRecording(true);
@@ -177,7 +211,7 @@ export default function EmotionAnalysis() {
       reader.onload = () => {
         const arrayBuffer = reader.result;
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        
+
         audioContext.decodeAudioData(arrayBuffer)
           .then(audioBuffer => {
             const wavBlob = audioBufferToWav(audioBuffer);
@@ -197,14 +231,14 @@ export default function EmotionAnalysis() {
     const numberOfChannels = audioBuffer.numberOfChannels;
     const arrayBuffer = new ArrayBuffer(44 + length * numberOfChannels * 2);
     const view = new DataView(arrayBuffer);
-    
+
     // WAV header
     const writeString = (offset, string) => {
       for (let i = 0; i < string.length; i++) {
         view.setUint8(offset + i, string.charCodeAt(i));
       }
     };
-    
+
     writeString(0, 'RIFF');
     view.setUint32(4, 36 + length * numberOfChannels * 2, true);
     writeString(8, 'WAVE');
@@ -218,7 +252,7 @@ export default function EmotionAnalysis() {
     view.setUint16(34, 16, true);
     writeString(36, 'data');
     view.setUint32(40, length * numberOfChannels * 2, true);
-    
+
     // Convert audio data
     let offset = 44;
     for (let i = 0; i < length; i++) {
@@ -228,7 +262,7 @@ export default function EmotionAnalysis() {
         offset += 2;
       }
     }
-    
+
     return new Blob([arrayBuffer], { type: 'audio/wav' });
   };
 
@@ -278,13 +312,13 @@ export default function EmotionAnalysis() {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-primary-50/30 dark:from-dark-900 dark:via-dark-800 dark:to-dark-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <motion.div 
+        <motion.div
           className="text-center mb-16"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <motion.div 
+          <motion.div
             className="inline-flex items-center space-x-3 bg-white/80 dark:bg-dark-800/80 backdrop-blur-xl text-primary-700 dark:text-primary-300 px-6 py-3 rounded-full text-sm font-semibold mb-8 border border-white/20 dark:border-dark-700/50 shadow-xl"
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -305,7 +339,7 @@ export default function EmotionAnalysis() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Input Section */}
-          <motion.div 
+          <motion.div
             className="space-y-8"
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -322,7 +356,7 @@ export default function EmotionAnalysis() {
                 </h2>
                 <div className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-full opacity-20"></div>
               </div>
-              
+
               <div className="space-y-6">
                 {/* File Upload */}
                 <div className="relative">
@@ -345,11 +379,11 @@ export default function EmotionAnalysis() {
                       </div>
                     </div>
                   </button>
-                  <input 
-                    ref={fileInputRef} 
-                    type="file" 
-                    accept="audio/*" 
-                    className="hidden" 
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="audio/*"
+                    className="hidden"
                     onChange={onFileChange}
                     disabled={loading || recording}
                   />
@@ -393,7 +427,7 @@ export default function EmotionAnalysis() {
 
                 {/* Audio Playback */}
                 {audioUrl && (
-                  <motion.div 
+                  <motion.div
                     className="bg-white/80 dark:bg-dark-800/80 backdrop-blur-xl rounded-2xl p-6 border border-white/20 dark:border-dark-700/50 shadow-xl"
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -425,15 +459,15 @@ export default function EmotionAnalysis() {
 
             {/* Loading State */}
             {loading && (
-              <motion.div 
+              <motion.div
                 className="card-gradient text-center"
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.4 }}
               >
-                <ModernLoader 
-                  size="xl" 
-                  text="Analyzing Audio" 
+                <ModernLoader
+                  size="xl"
+                  text="Analyzing Audio"
                   showBrain={true}
                   variant="brain"
                 />
@@ -452,7 +486,7 @@ export default function EmotionAnalysis() {
 
             {/* Error State */}
             {error && (
-              <motion.div 
+              <motion.div
                 className="card-gradient border-2 border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-900/20"
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -472,7 +506,7 @@ export default function EmotionAnalysis() {
           </motion.div>
 
           {/* Results Section */}
-          <motion.div 
+          <motion.div
             className="space-y-8"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -481,7 +515,7 @@ export default function EmotionAnalysis() {
             {result && (
               <>
                 {/* Main Result */}
-                <motion.div 
+                <motion.div
                   className="card-gradient"
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -499,7 +533,7 @@ export default function EmotionAnalysis() {
 
                   {topEmotion && (
                     <div className="text-center mb-8">
-                      <EmotionDisplay 
+                      <EmotionDisplay
                         emotion={topEmotion[0]}
                         confidence={topEmotion[1]}
                         size="xl"
@@ -522,7 +556,7 @@ export default function EmotionAnalysis() {
 
                   {/* Emotion Breakdown */}
                   {result.labels?.probs && (
-                    <EmotionBreakdown 
+                    <EmotionBreakdown
                       emotions={result.labels.probs}
                       className="animate-slide-in-right"
                     />
@@ -530,7 +564,7 @@ export default function EmotionAnalysis() {
                 </motion.div>
 
                 {/* Technical Details */}
-                <motion.div 
+                <motion.div
                   className="card-gradient"
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -563,7 +597,7 @@ export default function EmotionAnalysis() {
                         <div className="flex justify-between items-center py-4 px-4 bg-white/50 dark:bg-dark-800/50 rounded-xl border border-white/20 dark:border-dark-700/50">
                           <span className="text-gray-600 dark:text-gray-300 font-semibold">Duration:</span>
                           <span className="font-mono text-white bg-gradient-to-r from-accent-500 to-primary-500 px-3 py-1 rounded-lg text-sm font-bold">
-                            {result.audio_info.duration.toFixed(2)}s
+                            {(result.audio_info.duration || 0).toFixed(2)}s
                           </span>
                         </div>
                         <div className="flex justify-between items-center py-4 px-4 bg-white/50 dark:bg-dark-800/50 rounded-xl border border-white/20 dark:border-dark-700/50">
@@ -597,7 +631,7 @@ export default function EmotionAnalysis() {
                 </motion.div>
 
                 {/* Reset Button */}
-                <motion.div 
+                <motion.div
                   className="flex justify-center"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -616,7 +650,7 @@ export default function EmotionAnalysis() {
 
             {/* Empty State */}
             {!result && !loading && !error && (
-              <motion.div 
+              <motion.div
                 className="card-gradient text-center py-16"
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}

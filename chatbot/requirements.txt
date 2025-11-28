@@ -1,6 +1,23 @@
-speechrecognition==3.8.1  
-pyttsx3==2.90  
-pipwin==0.5.1  
-nltk==3.9.0  
-tensorflow==2.14.0  
-flask
+# Minimal dependencies for JTalk chatbot (avoiding TensorFlow conflicts)
+numpy==1.24.3
+torch==2.0.1
+transformers==4.30.0
+tokenizers==0.13.3
+
+# Speech and audio processing
+SpeechRecognition==3.10.0
+pyaudio==0.2.14
+
+# Web API
+flask==2.3.3
+flask-cors==4.0.0
+
+# Essential dependencies only
+requests>=2.26.0
+regex!=2019.12.17
+tqdm>=4.27
+huggingface-hub>=0.15.0
+filelock>=3.0.0
+typing-extensions>=4.5.0
+packaging>=20.0
+pyyaml>=5.1

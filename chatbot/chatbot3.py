@@ -5,11 +5,19 @@ import speech_recognition as sr
 import random
 import json
 
-# Transformer Model Import
+# Transformer Model Import with better error handling
 try:
+    import torch
     from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer
-except ImportError:
-    print("Please install transformers: pip install transformers")
+    print("Transformers and PyTorch loaded successfully")
+except ImportError as e:
+    print(f"Error importing transformers: {e}")
+    print("Please install: pip install transformers torch")
+    sys.exit(1)
+except Exception as e:
+    print(f"Error loading PyTorch/Transformers: {e}")
+    print("Try: pip uninstall torch transformers")
+    print("Then: pip install torch==2.6.0+cpu transformers==4.46.0")
     sys.exit(1)
 
 # Initialize the speech recognition engine
@@ -17,14 +25,16 @@ recognizer = sr.Recognizer()
 
 def speak_macos(text):
     """
-    Text-to-speech for macOS using system 'say' command.
+    Text-to-speech for Windows using system 'powershell' command.
     Provides more robust error handling and voice options.
     """
     try:
-        subprocess.run(['say', '-v', 'Samantha', text], check=True)
+        # Use Windows PowerShell for text-to-speech
+        subprocess.run(['powershell', '-Command', f'Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak("{text}")'], check=True)
     except subprocess.CalledProcessError:
         try:
-            subprocess.run(['say', text], check=True)
+            # Fallback to simple PowerShell command
+            subprocess.run(['powershell', '-Command', f'Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak("{text}")'], check=True)
         except Exception as e:
             print(f"TTS Error: {e}")
             print(f"[Would have spoken]: {text}")
@@ -216,42 +226,80 @@ def enhanced_match_intent(text, intents):
 
 def initialize_chatbot():
     """
-    Initialize the language model with error handling and parallelism disabled.
+    Initialize the language model with better error handling and fallbacks.
     """
     try:
+        # Disable tokenizers parallelism to avoid warnings
         os.environ["TOKENIZERS_PARALLELISM"] = "false"
-        model_name = "microsoft/DialoGPT-medium"
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
-        model = AutoModelForCausalLM.from_pretrained(model_name)
+        
+        # Try to use a lighter model first
+        model_name = "microsoft/DialoGPT-small"  # Using smaller model for better compatibility
+        
+        print(f"Loading model: {model_name}")
+        tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir="./model_cache")
+        
+        # Add padding token if not present
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = tokenizer.eos_token
+            
+        model = AutoModelForCausalLM.from_pretrained(model_name, cache_dir="./model_cache")
+        
         chatbot = pipeline('text-generation', 
                            model=model, 
                            tokenizer=tokenizer,
-                           max_length=200,
-                           num_return_sequences=1)
+                           max_length=150,  # Reduced for better performance
+                           num_return_sequences=1,
+                           pad_token_id=tokenizer.eos_token_id)
+        
+        print("Chatbot initialized successfully")
         return chatbot, tokenizer
+        
     except Exception as e:
         print(f"Error initializing chatbot: {e}")
-        sys.exit(1)
+        print("Falling back to simple text responses...")
+        return None, None
 
 def generate_response(chatbot, tokenizer, text, conversation_history):
     """
-    Generate a conversational response using the language model.
+    Generate a conversational response using the language model with fallbacks.
     """
+    # If chatbot failed to initialize, use simple responses
+    if chatbot is None or tokenizer is None:
+        fallback_responses = [
+            "That's interesting! Tell me more.",
+            "I understand what you're saying.",
+            "Could you elaborate on that?",
+            "That's a good point.",
+            "I'm listening, please continue."
+        ]
+        return random.choice(fallback_responses)
+    
     try:
-        context = " ".join(conversation_history[-3:])
+        context = " ".join(conversation_history[-2:]) if conversation_history else ""
         full_prompt = f"{context} {text}"
-        responses = chatbot(full_prompt)
+        
+        responses = chatbot(full_prompt, max_new_tokens=50, do_sample=True, temperature=0.7)
         
         if responses and len(responses) > 0:
             response = responses[0]['generated_text']
             if full_prompt in response:
                 response = response.replace(full_prompt, '').strip()
-            return response
+            
+            # Clean up the response
+            if response and len(response) > 10:
+                return response
         
         return "I'm not sure how to respond to that."
+        
     except Exception as e:
         print(f"Error generating response: {e}")
-        return "I'm having trouble understanding right now."
+        fallback_responses = [
+            "I'm having trouble processing that right now.",
+            "Could you rephrase that?",
+            "I didn't quite understand that.",
+            "Let's try a different approach."
+        ]
+        return random.choice(fallback_responses)
 
 def chat():
     """

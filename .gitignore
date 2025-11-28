@@ -78,64 +78,67 @@ web_modules/
 .env.test.local
 .env.production.local
 .env.local
-# Python virtual environments
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
 .venv/
 venv/
 env/
+python2/m5/
 **/Scripts/
 **/Lib/site-packages/
-# parcel-bundler cache (https://parceljs.org/)
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Framework/Tool Caches
 .cache
 .parcel-cache
-
-# Next.js build output
 .next
 out
-
-# Nuxt.js build / generate output
 .nuxt
-dist
-
-# Gatsby files
-.cache/
-# Comment in the public line in if your project uses Gatsby and not Next.js
-# https://nextjs.org/blog/next-9-1#public-directory-support
-# public
-
-# vuepress build output
 .vuepress/dist
-
-# vuepress v2.x temp and cache directory
 .temp
-.cache
-
-# vitepress build output
-**/.vitepress/dist
-
-# vitepress cache directory
-**/.vitepress/cache
-
-# Docusaurus cache and generated files
 .docusaurus
-
-# Serverless directories
 .serverless/
-
-# FuseBox cache
 .fusebox/
-
-# DynamoDB Local files
 .dynamodb/
-
-# TernJS port file
 .tern-port
-
-# Stores VSCode versions used for testing VSCode extensions
 .vscode-test
-
-# yarn v2
 .yarn/cache
 .yarn/unplugged
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# Project Specific Secrets
+frontend/src/config.js
+VAPI-AI-Voice-Assistant-main/

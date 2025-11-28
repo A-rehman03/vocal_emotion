@@ -1,9 +1,0 @@
-Flask==3.0.3
-flask-cors==4.0.1
-tensorflow==2.17.1
-# For TF 2.17 on Py3.12, NumPy 1.26.x and SciPy 1.11.x are fine
-numpy==1.26.4
-scipy==1.11.4
-librosa==0.10.1
-soundfile==0.12.1
-werkzeug==3.0.3

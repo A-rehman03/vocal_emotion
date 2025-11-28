@@ -57,32 +57,35 @@ router.post('/analyze', protect, upload.single('audio'), async (req, res) => {
       }
 
       // Extract emotion from Python response
-      const detectedEmotion = pythonData.labels?.top1 || 'neutral';
-      const confidence = pythonData.labels?.confidence || 0.5;
+      const detectedEmotion = pythonData.predicted_emotion || 'neutral';
+      const confidence = pythonData.confidence || 0.5;
       
       // Generate contextual response based on detected emotion
       let response = '';
       switch (detectedEmotion) {
-        case 'happy':
+        case 'Happy':
           response = "I can hear the joy in your voice! That's wonderful to hear. What's making you feel so happy today?";
           break;
-        case 'sad':
+        case 'Sad':
           response = "I sense some sadness in your tone. It's okay to feel this way. Would you like to talk about what's on your mind?";
           break;
-        case 'angry':
+        case 'Angry':
           response = "I notice some frustration in your voice. Let's take a moment to breathe and work through this together. What's bothering you?";
           break;
-        case 'fear':
+        case 'Fearful':
           response = "I can hear some worry in your voice. You're not alone, and we can work through this together. What's concerning you?";
           break;
-        case 'surprise':
+        case 'Surprised':
           response = "You sound surprised! I'd love to hear more about what caught you off guard.";
           break;
-        case 'disgust':
+        case 'Disgust':
           response = "I can sense some strong feelings in your voice. What's on your mind right now?";
           break;
-        case 'neutral':
+        case 'Neutral':
           response = "I'm here to listen and help. How are you feeling today?";
+          break;
+        case 'Calm':
+          response = "You sound very calm and centered. That's a wonderful state to be in.";
           break;
         default:
           response = "Thank you for sharing that with me. I'm here to listen and help however I can.";
@@ -100,7 +103,9 @@ router.post('/analyze', protect, upload.single('audio'), async (req, res) => {
           detectedEmotion,
           confidence: parseFloat(confidence),
           timestamp: new Date().toISOString(),
-          rawPrediction: pythonData.raw
+          rawPrediction: pythonData.raw_prediction,
+          allProbabilities: pythonData.all_probabilities,
+          method: pythonData.method
         },
         response
       });

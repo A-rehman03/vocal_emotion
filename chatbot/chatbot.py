@@ -13,12 +13,20 @@ import speech_recognition as sr
 import random
 import json
 
-from chatbot3 import enhanced_match_intent, generate_response, initialize_chatbot, recognize_speech, speak_macos
-# Transformer Model Import
+from chatbot3 import enhanced_match_intent, generate_response, initialize_chatbot, recognize_speech, speak_macos, load_intents
+# Transformer Model Import with better error handling
 try:
+    import torch
     from transformers import pipeline, AutoModelForCausalLM, AutoTokenizer
-except ImportError:
-    print("Please install transformers: pip install transformers")
+    print("Transformers and PyTorch loaded successfully")
+except ImportError as e:
+    print(f"Error importing transformers: {e}")
+    print("Please install: pip install transformers torch")
+    sys.exit(1)
+except Exception as e:
+    print(f"Error loading PyTorch/Transformers: {e}")
+    print("Try: pip uninstall torch transformers")
+    print("Then: pip install torch==2.6.0+cpu transformers==4.46.0")
     sys.exit(1)
 
 # Global variables for thread-safe intent management
