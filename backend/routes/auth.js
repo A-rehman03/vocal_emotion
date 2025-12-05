@@ -10,7 +10,7 @@ const router = express.Router();
 
 // Generate JWT Token
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
+  return jwt.sign({ id }, process.env.JWT_SECRET || 'fallback_secret_dev_only', {
     expiresIn: process.env.JWT_EXPIRE || '7d'
   });
 };
@@ -42,9 +42,9 @@ router.post('/register', [
     // Check for validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: 'Validation failed',
-        errors: errors.array() 
+        errors: errors.array()
       });
     }
 
@@ -84,7 +84,7 @@ router.post('/register', [
 
     // Send OTP email
     const emailResult = await sendOTPEmail(email, otp, firstName);
-    
+
     if (emailResult.success) {
       res.status(201).json({
         message: 'Registration successful. Please check your email for the verification code.',
@@ -120,9 +120,9 @@ router.post('/verify-otp', [
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: 'Validation failed',
-        errors: errors.array() 
+        errors: errors.array()
       });
     }
 
@@ -178,9 +178,9 @@ router.post('/resend-otp', [
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: 'Validation failed',
-        errors: errors.array() 
+        errors: errors.array()
       });
     }
 
@@ -205,7 +205,7 @@ router.post('/resend-otp', [
 
     // Send OTP email
     const emailResult = await sendOTPEmail(user.email, otp, user.firstName);
-    
+
     if (emailResult.success) {
       res.json({
         message: 'OTP resent successfully. Please check your email.'
@@ -241,9 +241,9 @@ router.post('/login', [
     // Check for validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: 'Validation failed',
-        errors: errors.array() 
+        errors: errors.array()
       });
     }
 
@@ -251,7 +251,7 @@ router.post('/login', [
 
     // Check if user exists and password is correct
     const user = await User.findOne({ email }).select('+password');
-    
+
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
@@ -340,9 +340,9 @@ router.post('/forgot-password', [
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: 'Validation failed',
-        errors: errors.array() 
+        errors: errors.array()
       });
     }
 
@@ -363,15 +363,15 @@ router.post('/forgot-password', [
 
     // Send password reset email
     const emailResult = await sendPasswordResetEmail(email, resetToken, user.firstName);
-    
+
     if (emailResult.success) {
-      res.json({ 
+      res.json({
         message: 'If an account with that email exists, a password reset link has been sent'
       });
     } else {
       // If email fails, still return success but include token for development
       console.error('Email sending failed:', emailResult.error);
-      res.json({ 
+      res.json({
         message: 'If an account with that email exists, a password reset link has been sent',
         resetToken // Include token in development if email fails
       });

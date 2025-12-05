@@ -142,3 +142,4 @@ out
 # Project Specific Secrets
 frontend/src/config.js
 VAPI-AI-Voice-Assistant-main/
+chatbot/model_cache/

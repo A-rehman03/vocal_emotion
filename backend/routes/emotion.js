@@ -32,16 +32,14 @@ router.post('/analyze', protect, upload.single('audio'), async (req, res) => {
 
     const audioBuffer = req.file.buffer;
     const audioType = req.file.mimetype;
-    
+
     // Send audio to Python emotion analysis service
     try {
       const formData = new FormData();
-      formData.append('audio', audioBuffer, {
-        filename: req.file.originalname || 'audio.wav',
-        contentType: audioType
-      });
+      const blob = new Blob([audioBuffer], { type: audioType });
+      formData.append('audio', blob, req.file.originalname || 'audio.wav');
 
-      const pythonResponse = await fetch('http://localhost:5001/predict', {
+      const pythonResponse = await fetch('http://localhost:5002/analyze', {
         method: 'POST',
         body: formData
       });
@@ -51,44 +49,59 @@ router.post('/analyze', protect, upload.single('audio'), async (req, res) => {
       }
 
       const pythonData = await pythonResponse.json();
-      
+
       if (pythonData.error) {
         throw new Error(pythonData.error);
       }
 
       // Extract emotion from Python response
-      const detectedEmotion = pythonData.predicted_emotion || 'neutral';
-      const confidence = pythonData.confidence || 0.5;
-      
+      // New format: { predictions: [{ label: 'happy', score: 0.9 }, ...] }
+      const topPrediction = pythonData.predictions && pythonData.predictions.length > 0
+        ? pythonData.predictions[0]
+        : { label: 'neutral', score: 0.0 };
+
+      const detectedEmotion = topPrediction.label;
+      const confidence = topPrediction.score;
+
       // Generate contextual response based on detected emotion
       let response = '';
-      switch (detectedEmotion) {
-        case 'Happy':
+      switch (detectedEmotion.toLowerCase()) {
+        case 'happy':
           response = "I can hear the joy in your voice! That's wonderful to hear. What's making you feel so happy today?";
           break;
-        case 'Sad':
+        case 'sad':
           response = "I sense some sadness in your tone. It's okay to feel this way. Would you like to talk about what's on your mind?";
           break;
-        case 'Angry':
+        case 'angry':
           response = "I notice some frustration in your voice. Let's take a moment to breathe and work through this together. What's bothering you?";
           break;
-        case 'Fearful':
+        case 'fear':
+        case 'fearful':
           response = "I can hear some worry in your voice. You're not alone, and we can work through this together. What's concerning you?";
           break;
-        case 'Surprised':
+        case 'surprise':
+        case 'surprised':
           response = "You sound surprised! I'd love to hear more about what caught you off guard.";
           break;
-        case 'Disgust':
+        case 'disgust':
           response = "I can sense some strong feelings in your voice. What's on your mind right now?";
           break;
-        case 'Neutral':
+        case 'neutral':
           response = "I'm here to listen and help. How are you feeling today?";
           break;
-        case 'Calm':
+        case 'calm':
           response = "You sound very calm and centered. That's a wonderful state to be in.";
           break;
         default:
           response = "Thank you for sharing that with me. I'm here to listen and help however I can.";
+      }
+
+      // Map probabilities for frontend
+      const allProbabilities = {};
+      if (pythonData.predictions) {
+        pythonData.predictions.forEach(p => {
+          allProbabilities[p.label] = p.score;
+        });
       }
 
       res.json({
@@ -97,27 +110,32 @@ router.post('/analyze', protect, upload.single('audio'), async (req, res) => {
           originalName: req.file.originalname,
           size: req.file.size,
           mimetype: audioType,
-          duration: pythonData.audio_info?.duration || 0
+          duration: 0 // New model doesn't return duration yet
         },
         analysis: {
           detectedEmotion,
           confidence: parseFloat(confidence),
           timestamp: new Date().toISOString(),
-          rawPrediction: pythonData.raw_prediction,
-          allProbabilities: pythonData.all_probabilities,
-          method: pythonData.method
+          allProbabilities: allProbabilities,
+          method: 'transformer_model'
         },
+        labels: {
+          top1: detectedEmotion,
+          probs: allProbabilities
+        },
+        input_shape: [1, 16000],
+        features: { sequence_shape: [1, 128, 128] },
         response
       });
 
     } catch (pythonError) {
       console.error('Python service error:', pythonError);
-      
+
       // Fallback to mock analysis if Python service is unavailable
       const emotions = ['happy', 'sad', 'angry', 'neutral', 'excited', 'calm'];
       const detectedEmotion = emotions[Math.floor(Math.random() * emotions.length)];
       const confidence = Math.random() * 0.4 + 0.6;
-      
+
       let response = '';
       switch (detectedEmotion) {
         case 'happy':
@@ -175,7 +193,7 @@ router.post('/realtime', protect, async (req, res) => {
 
     // Here you would implement real-time emotion analysis
     // This is a placeholder for streaming emotion detection
-    
+
     // Mock real-time analysis
     const emotions = ['happy', 'sad', 'angry', 'neutral', 'excited', 'calm'];
     const detectedEmotion = emotions[Math.floor(Math.random() * emotions.length)];
@@ -203,10 +221,10 @@ router.post('/realtime', protect, async (req, res) => {
 router.get('/history', protect, async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
-    
+
     // Here you would fetch from a database
     // This is a placeholder response
-    
+
     const mockHistory = Array.from({ length: Math.min(limit, 5) }, (_, i) => ({
       id: `analysis_${Date.now()}_${i}`,
       emotion: ['happy', 'sad', 'angry', 'neutral', 'excited', 'calm'][Math.floor(Math.random() * 6)],
