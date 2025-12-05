@@ -12,7 +12,19 @@ from utils.audio_utils import load_audio_as_np
 app = Flask(__name__)
 
 # Model selection
-MODEL_NAME = "prithivMLmods/Speech-Emotion-Classification"
+# Model selection
+MODEL_ROOT = os.path.join(os.path.dirname(__file__), "model")
+ref_path = os.path.join(MODEL_ROOT, "refs", "main")
+
+if os.path.exists(ref_path):
+    with open(ref_path, "r") as f:
+        commit_hash = f.read().strip()
+    MODEL_NAME = os.path.join(MODEL_ROOT, "snapshots", commit_hash)
+elif os.path.exists(os.path.join(MODEL_ROOT, "config.json")):
+    MODEL_NAME = MODEL_ROOT
+else:
+    MODEL_NAME = "prithivMLmods/Speech-Emotion-Classification"
+
 device = 0 if torch.cuda.is_available() else -1
 
 # Load once at startup
@@ -57,8 +69,19 @@ def analyze():
         probs = F.softmax(logits, dim=-1)[0].cpu().numpy()
 
         # Build prediction list
+        LABEL_MAP = {
+            "DIS": "Disgust",
+            "ANG": "Anger",
+            "SAD": "Sadness",
+            "HAP": "Happiness",
+            "NEU": "Neutral",
+            "SUR": "Surprise",
+            "CAL": "Calm",
+            "FEA": "Fear"
+        }
         preds = [
-            {"label": LABELS[i], "score": float(probs[i])} for i in range(len(LABELS))
+            {"label": LABEL_MAP.get(LABELS[i], LABELS[i]), "score": float(probs[i])}
+            for i in range(len(LABELS))
         ]
         preds = sorted(preds, key=lambda x: x["score"], reverse=True)
         return jsonify({"predictions": preds})

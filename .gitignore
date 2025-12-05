@@ -107,7 +107,6 @@ MANIFEST
 .venv/
 venv/
 env/
-python2/m5/
 **/Scripts/
 **/Lib/site-packages/
 
@@ -139,7 +138,14 @@ out
 .yarn/install-state.gz
 .pnp.*
 
+
 # Project Specific Secrets
 frontend/src/config.js
-VAPI-AI-Voice-Assistant-main/
-chatbot/model_cache/
+
+
+# Machine Learning Model Cache
+emotion_service/model/
+*.safetensors
+*.bin
+*.model
+*.h5

@@ -118,8 +118,8 @@ const Chat = () => {
               <Brain className="h-7 w-7 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">AI Chat Assistant</h1>
-              <p className="text-sm text-gray-600 dark:text-gray-300 font-medium">Powered by Vapi AI</p>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Emotion AI Assistant</h1>
+              <p className="text-sm text-gray-600 dark:text-gray-300 font-medium">Powered by Advanced Voice AI</p>
             </div>
           </div>
           <div className="flex items-center space-x-2">
@@ -172,8 +172,8 @@ const Chat = () => {
             <div className="relative mb-8">
               <motion.div
                 className={`w-32 h-32 rounded-full flex items-center justify-center shadow-2xl ${conversationState === 'listening' ? 'bg-gradient-to-br from-red-500 to-red-600' :
-                    conversationState === 'speaking' ? 'bg-gradient-to-br from-green-500 to-emerald-500' :
-                      'bg-gradient-to-br from-primary-500 to-secondary-500'
+                  conversationState === 'speaking' ? 'bg-gradient-to-br from-green-500 to-emerald-500' :
+                    'bg-gradient-to-br from-primary-500 to-secondary-500'
                   }`}
                 animate={{
                   scale: conversationState === 'listening' || conversationState === 'speaking' ? [1, 1.05 + volumeLevel, 1] : 1,
@@ -208,7 +208,7 @@ const Chat = () => {
             {/* Conversation Status */}
             <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
               {conversationState === 'listening' ? 'Listening...' :
-                conversationState === 'speaking' ? 'AI is speaking...' :
+                conversationState === 'speaking' ? 'Assistant is speaking...' :
                   'Conversation Active'}
             </h3>
 
@@ -226,7 +226,7 @@ const Chat = () => {
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-3 h-3 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-full"></div>
-                <span className="font-semibold">Vapi AI</span>
+                <span className="font-semibold">Voice AI</span>
               </div>
             </div>
 
