@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: emotion-service
+    env: python
+    buildCommand: cd emotion_service && pip install -r requirements.txt
+    startCommand: cd emotion_service && gunicorn app:app
+    envVars:
+      - key: HF_TOKEN
+        sync: false
